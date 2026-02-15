@@ -226,6 +226,16 @@ node scripts/fix-cron-delivery.js             # apply (creates backup first)
 - Fixes: `"to": "User"` (no channel), Telegram without `to`, and `mode: "announce"` with no channel/to → all get `channel: "telegram"` and `to: "YOUR_TELEGRAM_ID"`. Override with `OPENCLAW_CRON_DEFAULT_TO` or edit the script.
 - Backup: `~/.openclaw/cron/jobs.json.bak.<timestamp>`. Restore: `cp ~/.openclaw/cron/jobs.json.bak.<ts> ~/.openclaw/cron/jobs.json`.
 
+**Set all cron jobs to cursor/auto (same as heartbeat)**  
+To make every isolated cron job use `cursor/auto` (or another model), run **on your machine**:
+
+```bash
+cd ~/Development/openclaw-cursor
+node scripts/set-cron-model.js --dry-run   # preview
+node scripts/set-cron-model.js             # set all to cursor/auto
+node scripts/set-cron-model.js cursor/opus-4.6   # or another model
+```
+
 ## API Endpoints
 
 - `POST /v1/chat/completions` - OpenAI-compatible chat (streaming and non-streaming)

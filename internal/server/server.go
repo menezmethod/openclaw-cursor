@@ -221,7 +221,12 @@ func (s *Server) handleNonStreaming(w http.ResponseWriter, proc *agent.Process, 
 
 func (s *Server) writeError(w http.ResponseWriter, pe *errors.ParsedError) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
+	// Return 429 for quota/rate limit errors so OpenClaw's fallback triggers
+	if pe.Type == "quota_exceeded" || pe.Type == "rate_limit" {
+		w.WriteHeader(http.StatusTooManyRequests)
+	} else {
+		w.WriteHeader(http.StatusTooManyRequests)
+	}
 	json.NewEncoder(w).Encode(errors.ToOpenAIError(pe))
 }
 
