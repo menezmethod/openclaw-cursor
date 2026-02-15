@@ -278,7 +278,11 @@ func (s *Server) Start() error {
 	defer stop()
 
 	go func() {
-		s.log.Info("proxy listening", "addr", addr, "version", s.version)
+		v := s.version
+		if v == "" {
+			v = "unknown"
+		}
+		s.log.Info(fmt.Sprintf("proxy listening (version %s)", v), "addr", addr)
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			s.log.Error("server error", "err", err)
 		}

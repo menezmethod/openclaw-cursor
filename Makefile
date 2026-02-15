@@ -1,13 +1,47 @@
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -s -w -X main.version=$(VERSION)
+HOME ?= $(shell echo $$HOME)
+BINARY := $(HOME)/.local/bin/openclaw-cursor
+PLIST := $(HOME)/Library/LaunchAgents/ai.openclaw.cursor-proxy.plist
 
-.PHONY: build install cross test lint clean
+.PHONY: build install install-local launchd-setup launchd-reload refresh cross test lint clean
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/openclaw-cursor ./cmd/openclaw-cursor
 
 install:
 	go install -ldflags "$(LDFLAGS)" ./cmd/openclaw-cursor
+
+install-local: build
+	@mkdir -p $(HOME)/.local/bin
+	@ln -sf "$(shell pwd)/bin/openclaw-cursor" $(BINARY)
+	@echo "Installed to $(BINARY)"
+
+launchd-setup: install-local
+	@mkdir -p $(HOME)/.openclaw/logs
+	@printf '%s\n' \
+		'<?xml version="1.0" encoding="UTF-8"?>' \
+		'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+		'<plist version="1.0"><dict>' \
+		'  <key>Label</key><string>ai.openclaw.cursor-proxy</string>' \
+		'  <key>RunAtLoad</key><true/>' \
+		'  <key>KeepAlive</key><true/>' \
+		'  <key>ProgramArguments</key><array>' \
+		'    <string>$(BINARY)</string>' \
+		'    <string>start</string>' \
+		'  </array>' \
+		'  <key>StandardOutPath</key><string>$(HOME)/.openclaw/logs/cursor-proxy.log</string>' \
+		'  <key>StandardErrorPath</key><string>$(HOME)/.openclaw/logs/cursor-proxy.err.log</string>' \
+		'</dict></plist>' > $(PLIST)
+	@echo "Created $(PLIST)"
+
+launchd-reload:
+	@launchctl unload $(PLIST) 2>/dev/null || true
+	@launchctl load $(PLIST)
+	@echo "Reloaded cursor-proxy (check $(HOME)/.openclaw/logs/cursor-proxy.err.log)"
+
+refresh: launchd-setup launchd-reload
+	@echo "Done. Cursor-proxy running via launchd from $(BINARY)"
 
 cross:
 	@mkdir -p dist

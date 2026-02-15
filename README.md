@@ -201,6 +201,37 @@ Run `openclaw-cursor models` for the full list. Key models:
 - **Claude**: opus-4.6, opus-4.6-thinking, sonnet-4.5, sonnet-4.5-thinking — [Claude models overview](https://platform.claude.com/docs/en/about-claude/models/overview)
 - **Other**: gemini-3-pro, gemini-3-flash, grok
 
+## Operations (Refresh & Version)
+
+**One command to rebuild, install, and reload the proxy:**
+
+```bash
+cd ~/Development/openclaw-cursor
+make refresh
+```
+
+This builds with the current git version, symlinks to `~/.local/bin/openclaw-cursor`, creates/updates the launchd plist, and reloads it. The proxy restarts with the new binary.
+
+**Verify the version:**
+- Log on boot: `tail ~/.openclaw/logs/cursor-proxy.err.log` — look for `msg="proxy listening (version X)"`
+- CLI: `openclaw-cursor version`
+- Health: `curl -s http://127.0.0.1:32125/health | jq .proxy_version`
+
+**Paths:** Binary `~/.local/bin/openclaw-cursor` · Plist `~/Library/LaunchAgents/ai.openclaw.cursor-proxy.plist` · Logs `~/.openclaw/logs/cursor-proxy.*.log`
+
+### Agent skill (for RICO / OpenClaw bots)
+
+The repo includes a skill so your agent knows how to operate the cursor-proxy:
+
+```bash
+mkdir -p ~/.openclaw/skills
+cp -r ~/Development/openclaw-cursor/skills/cursor-proxy ~/.openclaw/skills/
+```
+
+Or into workspace: `cp -r skills/cursor-proxy ~/.openclaw/workspace/skills/`
+
+The agent will then know how to verify the version and suggest `make refresh` when the proxy needs updating.
+
 ## Troubleshooting
 
 **"cursor-agent not found"**  
