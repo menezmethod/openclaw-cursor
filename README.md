@@ -261,7 +261,7 @@ node scripts/fix-cron-delivery.js --dry-run   # preview
 node scripts/fix-cron-delivery.js             # apply (creates backup first)
 ```
 
-- Fixes: `"to": "User"` (no channel), Telegram without `to`, and `mode: "announce"` with no channel/to → all get `channel: "telegram"` and `to: "YOUR_TELEGRAM_ID"`. Override with `OPENCLAW_CRON_DEFAULT_TO` or edit the script.
+- Fixes: legacy `"to"` display name (no channel), Telegram without `to`, and `mode: "announce"` with no channel/to. Set `OPENCLAW_CRON_DEFAULT_TO` to your Telegram numeric ID. For legacy display-name replacement, set `OPENCLAW_CRON_LEGACY_TO`.
 - Backup: `~/.openclaw/cron/jobs.json.bak.<timestamp>`. Restore: `cp ~/.openclaw/cron/jobs.json.bak.<ts> ~/.openclaw/cron/jobs.json`.
 
 **Set all cron jobs to cursor/auto (same as heartbeat)**  

@@ -13,14 +13,18 @@
 const fs = require('fs');
 const path = require('path');
 
-// Set OPENCLAW_CRON_DEFAULT_TO to override (default: User's Telegram ID)
-const DEFAULT_TELEGRAM_TO = process.env.OPENCLAW_CRON_DEFAULT_TO || 'YOUR_TELEGRAM_ID';
+// Set OPENCLAW_CRON_DEFAULT_TO to your Telegram numeric ID (required for fixes)
+const DEFAULT_TELEGRAM_TO = process.env.OPENCLAW_CRON_DEFAULT_TO || '';
 const jobsPath =
   process.env.OPENCLAW_CRON_JOBS ||
   path.join(process.env.HOME || process.env.USERPROFILE || '', '.openclaw', 'cron', 'jobs.json');
 const dryRun = process.argv.includes('--dry-run');
 
 function main() {
+  if (!DEFAULT_TELEGRAM_TO) {
+    console.error('Set OPENCLAW_CRON_DEFAULT_TO to your Telegram numeric ID (e.g. OPENCLAW_CRON_DEFAULT_TO=123456789 node scripts/fix-cron-delivery.js)');
+    process.exit(1);
+  }
   if (!fs.existsSync(jobsPath)) {
     console.error('Cron jobs file not found:', jobsPath);
     process.exit(1);
@@ -49,23 +53,21 @@ function main() {
     let changed = false;
     let next = { ...d, mode };
 
-    // "to": "User" with no channel → use Telegram + numeric ID
-    if (d.to === 'User' && !d.channel) {
+    // "to" is a legacy display name with no channel → use Telegram + numeric ID (set OPENCLAW_CRON_LEGACY_TO)
+    const legacyTo = process.env.OPENCLAW_CRON_LEGACY_TO || '';
+    if (legacyTo && d.to === legacyTo && !d.channel) {
       next.channel = 'telegram';
-      next.to = DEFAULT_TELEGRAM_TO;
-      changed = true;
+      if (DEFAULT_TELEGRAM_TO) { next.to = DEFAULT_TELEGRAM_TO; changed = true; }
     }
 
     // channel is telegram but no to → add to so delivery doesn't fail
-    if (d.channel === 'telegram' && !d.to) {
+    if (d.channel === 'telegram' && !d.to && DEFAULT_TELEGRAM_TO) {
       next.to = DEFAULT_TELEGRAM_TO;
       changed = true;
     }
 
-    // Jobs with explicit non-User target (e.g. to: "webchat") are left unchanged — we only set channel/to when missing or "User"
-
     // mode "announce" with no channel and no to → default to Telegram (avoids WhatsApp fallback)
-    if (mode === 'announce' && !d.channel && !d.to) {
+    if (mode === 'announce' && !d.channel && !d.to && DEFAULT_TELEGRAM_TO) {
       next.channel = 'telegram';
       next.to = DEFAULT_TELEGRAM_TO;
       changed = true;
