@@ -9,13 +9,21 @@ import (
 )
 
 // AliasMap normalizes cursor-agent tool names to OpenClaw tool names.
+// OpenClaw: exec, bash, shell, process (group:runtime) | read, write, edit, apply_patch (group:fs)
+// cursor-agent: runCommand, bash, read, write, edit
 var AliasMap = map[string]string{
-	"runcommand": "bash",
+	"runcommand":  "bash",
 	"run_command": "bash",
-	"bash":       "bash",
-	"write":      "write",
-	"edit":       "edit",
-	"read":       "read",
+	"runcommandtoolcall": "bash",
+	"run_command_tool_call": "bash",
+	"shell":       "bash",
+	"shelltoolcall": "bash",
+	"exec":        "bash",
+	"bash":        "bash",
+	"write":       "write",
+	"edit":        "edit",
+	"read":        "read",
+	"apply_patch": "edit",
 }
 
 // OpenAIToolCall is the OpenAI format for a tool call.

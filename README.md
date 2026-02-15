@@ -167,6 +167,7 @@ Config file: `~/.openclaw/cursor-proxy.json`
   "port": 32125,
   "log_level": "info",
   "tool_mode": "openclaw",
+  "workspace": "~/Development",
   "timeout_ms": 300000,
   "retry_attempts": 3,
   "default_model": "auto",
@@ -175,9 +176,15 @@ Config file: `~/.openclaw/cursor-proxy.json`
 }
 ```
 
+`workspace` — Directory cursor-agent can access. **Dynamic resolution:**
+1. `x-openclaw-workspace` request header (per-request override)
+2. Config `workspace` or `OPENCLAW_CURSOR_WORKSPACE`
+3. **Default: home directory** (`~`) — full access to all projects under your home
+
 Environment variables (override config):
 
 - `OPENCLAW_CURSOR_PORT` - Port (default 32125)
+- `OPENCLAW_CURSOR_WORKSPACE` - Workspace path (e.g. `~/Development`)
 - `OPENCLAW_CURSOR_LOG_LEVEL` - debug, info, warn, error
 - `OPENCLAW_CURSOR_LOG_SILENT` - true to suppress logs
 - `OPENCLAW_CURSOR_TOOL_MODE` - openclaw or proxy-exec

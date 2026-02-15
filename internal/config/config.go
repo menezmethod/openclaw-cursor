@@ -8,6 +8,21 @@ import (
 	"strconv"
 )
 
+func expandHome(p string) string {
+	if p == "" || p[0] != '~' {
+		return p
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return p
+	}
+	if len(p) == 1 || p[1] == '/' {
+		return filepath.Join(home, p[1:])
+	}
+	// ~user form - not supported, return as-is
+	return p
+}
+
 // Config holds proxy configuration.
 type Config struct {
 	Port                   int    `json:"port"`
@@ -16,6 +31,7 @@ type Config struct {
 	TimeoutMs              int    `json:"timeout_ms"`
 	RetryAttempts          int    `json:"retry_attempts"`
 	CursorAgentPath        string `json:"cursor_agent_path"`
+	Workspace              string `json:"workspace"`
 	DefaultModel           string `json:"default_model"`
 	EnableThinking         bool   `json:"enable_thinking"`
 	MaxToolLoopIterations  int    `json:"max_tool_loop_iterations"`
@@ -30,6 +46,7 @@ func Default() *Config {
 		TimeoutMs:             300000,
 		RetryAttempts:         3,
 		CursorAgentPath:       "",
+		Workspace:             "",
 		DefaultModel:          "auto",
 		EnableThinking:        true,
 		MaxToolLoopIterations: 10,
@@ -61,6 +78,9 @@ func Load() (*Config, error) {
 	}
 
 	applyEnvOverrides(cfg)
+	if cfg.Workspace != "" {
+		cfg.Workspace = expandHome(cfg.Workspace)
+	}
 	return cfg, nil
 }
 
@@ -88,6 +108,9 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("OPENCLAW_CURSOR_CURSOR_AGENT_PATH"); v != "" {
 		cfg.CursorAgentPath = v
+	}
+	if v := os.Getenv("OPENCLAW_CURSOR_WORKSPACE"); v != "" {
+		cfg.Workspace = expandHome(v)
 	}
 	if v := os.Getenv("OPENCLAW_CURSOR_DEFAULT_MODEL"); v != "" {
 		cfg.DefaultModel = v

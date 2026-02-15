@@ -8,7 +8,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,15 +26,16 @@ import (
 
 // Server is the HTTP proxy server.
 type Server struct {
-	cfg    *config.Config
-	log    *slog.Logger
-	mux    *http.ServeMux
-	server *http.Server
+	cfg     *config.Config
+	log     *slog.Logger
+	mux     *http.ServeMux
+	server  *http.Server
+	version string
 }
 
-// New creates a new server.
-func New(cfg *config.Config, log *slog.Logger) *Server {
-	s := &Server{cfg: cfg, log: log, mux: http.NewServeMux()}
+// New creates a new server. version is logged on boot (e.g. "1.0.0" or "dev").
+func New(cfg *config.Config, log *slog.Logger, version string) *Server {
+	s := &Server{cfg: cfg, log: log, mux: http.NewServeMux(), version: version}
 	s.routes()
 	return s
 }
@@ -52,7 +56,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":        "healthy",
 		"cursor_agent":  cursorAgent,
 		"authenticated": authStatus.Authenticated,
-		"proxy_version": "1.0.0",
+		"proxy_version": s.version,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
@@ -62,6 +66,37 @@ func (s *Server) handleListModels(w http.ResponseWriter, r *http.Request) {
 	list := models.ListOpenAI()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(list)
+}
+
+// resolveWorkspace picks the workspace for cursor-agent.
+// Priority: x-openclaw-workspace header → config → home directory (~).
+// This keeps the proxy dynamic: per-request override when OpenClaw passes it,
+// otherwise broad access (home) so the agent can work with any project.
+func resolveWorkspace(r *http.Request, cfg *config.Config) string {
+	if h := r.Header.Get("x-openclaw-workspace"); h != "" {
+		h = strings.TrimSpace(h)
+		if h != "" && h[0] == '~' {
+			if home, err := os.UserHomeDir(); err == nil {
+				if len(h) == 1 {
+					return home
+				}
+				// ~/foo -> home/foo
+				rest := strings.TrimPrefix(h, "~/")
+				return filepath.Join(home, rest)
+			}
+		}
+		if h != "" {
+			return h
+		}
+	}
+	if cfg.Workspace != "" {
+		return cfg.Workspace
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	return home
 }
 
 func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
@@ -94,10 +129,11 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	if stream {
 		spawnCtx = r.Context()
 	}
+	workspace := resolveWorkspace(r, s.cfg)
 	proc, err := agent.Spawn(spawnCtx, agent.Options{
 		Model:     modelID,
 		Prompt:    prompt,
-		Workspace: ".",
+		Workspace: workspace,
 		Timeout:   timeout,
 	})
 	if err != nil {
@@ -242,7 +278,7 @@ func (s *Server) Start() error {
 	defer stop()
 
 	go func() {
-		s.log.Info("proxy listening", "addr", addr)
+		s.log.Info("proxy listening", "addr", addr, "version", s.version)
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			s.log.Error("server error", "err", err)
 		}

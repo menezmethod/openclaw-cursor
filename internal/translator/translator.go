@@ -84,12 +84,26 @@ func extractTextContent(content json.RawMessage) string {
 	return ""
 }
 
+// openClawToCursorTool maps OpenClaw tool names to cursor-agent equivalents.
+// exec/shell -> bash; apply_patch -> edit; everything else passes through.
+func openClawToCursorTool(name string) string {
+	switch strings.ToLower(name) {
+	case "exec", "shell":
+		return "bash"
+	case "apply_patch":
+		return "edit"
+	default:
+		return name
+	}
+}
+
 // BuildPrompt converts OpenAI chat messages to cursor-agent text format.
 func BuildPrompt(req ChatCompletionRequest) string {
 	var lines []string
 
 	if len(req.Tools) > 0 {
 		var toolDescs []string
+		seen := make(map[string]bool)
 		for _, t := range req.Tools {
 			fn := t.Function
 			if fn == nil {
@@ -99,16 +113,29 @@ func BuildPrompt(req ChatCompletionRequest) string {
 			if name == "" {
 				name = "unknown"
 			}
+			// Map OpenClaw tool names to cursor-agent equivalents (exec/shell → bash)
+			cursorName := openClawToCursorTool(name)
+			if seen[cursorName] {
+				continue
+			}
+			seen[cursorName] = true
 			desc := fn.Description
+			if name != cursorName {
+				desc = "[" + name + "→" + cursorName + "] " + desc
+			}
 			paramStr := "{}"
 			if len(fn.Parameters) > 0 {
 				paramStr = string(fn.Parameters)
 			}
-			toolDescs = append(toolDescs, "- "+name+": "+desc+"\n  Parameters: "+paramStr)
+			toolDescs = append(toolDescs, "- "+cursorName+": "+desc+"\n  Parameters: "+paramStr)
 		}
 		if len(toolDescs) > 0 {
 			lines = append(lines, "SYSTEM: You have access to the following tools. When you need to use one, respond with a tool_call in the standard OpenAI format.\n"+
-				"Tool guidance: prefer write/edit for file changes; use bash mainly to run commands/tests.\n\nAvailable tools:\n"+
+				"Tool guidance (OpenClaw compatibility):\n"+
+				"- exec, shell → use bash for running commands\n"+
+				"- prefer write/edit for file changes; use bash for commands/tests\n"+
+				"- For browser, cron, gateway, web_search, web_fetch, message, nodes, sessions_*: output the tool_call; OpenClaw executes these.\n\n"+
+				"Available tools:\n"+
 				strings.Join(toolDescs, "\n"))
 		}
 	}

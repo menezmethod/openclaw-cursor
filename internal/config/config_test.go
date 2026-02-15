@@ -9,6 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestExpandHome(t *testing.T) {
+	// Without ~, returns as-is
+	assert.Equal(t, "/foo", expandHome("/foo"))
+	assert.Equal(t, "", expandHome(""))
+	// ~ expands to home
+	home, _ := os.UserHomeDir()
+	assert.Equal(t, home, expandHome("~"))
+	assert.Equal(t, filepath.Join(home, "dev"), expandHome("~/dev"))
+}
+
 func TestDefault(t *testing.T) {
 	cfg := Default()
 	assert.Equal(t, 32125, cfg.Port)

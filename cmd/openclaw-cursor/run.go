@@ -69,7 +69,7 @@ func runStart(daemon bool) error {
 		return runDaemon(cfg)
 	}
 
-	srv := server.New(cfg, log)
+	srv := server.New(cfg, log, version)
 	return srv.Start()
 }
 
