@@ -70,6 +70,10 @@ if [ ! -f "$OPENCLAW_CONFIG" ]; then
     PORT="${OPENCLAW_CURSOR_PORT:-32125}"
     cat > "$OPENCLAW_CONFIG" <<OCONF
 {
+  "gateway": {
+    "mode": "local",
+    "port": ${OPENCLAW_GATEWAY_PORT:-18789}
+  },
   "models": {
     "mode": "merge",
     "providers": {
