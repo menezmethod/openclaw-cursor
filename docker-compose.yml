@@ -1,0 +1,85 @@
+# ---------------------------------------------------------------------------
+# docker-compose.yml — openclaw-cursor proxy
+#
+# Usage:
+#   # Proxy only (default)
+#   docker compose up
+#
+#   # Proxy + OpenClaw gateway
+#   docker compose --profile gateway up
+#
+#   # With explicit auth (if not mounting)
+#   CURSOR_ACCESS_TOKEN=xxx CURSOR_REFRESH_TOKEN=yyy docker compose up
+# ---------------------------------------------------------------------------
+
+services:
+  proxy:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+    image: openclaw-cursor:latest
+    container_name: openclaw-cursor-proxy
+    restart: unless-stopped
+    ports:
+      - "${OPENCLAW_CURSOR_PORT:-32125}:32125"
+    environment:
+      - OPENCLAW_CURSOR_PORT=32125
+      - OPENCLAW_CURSOR_LOG_LEVEL=${OPENCLAW_CURSOR_LOG_LEVEL:-info}
+      - OPENCLAW_CURSOR_TOOL_MODE=${OPENCLAW_CURSOR_TOOL_MODE:-openclaw}
+      - OPENCLAW_CURSOR_ENABLE_THINKING=${OPENCLAW_CURSOR_ENABLE_THINKING:-true}
+      - OPENCLAW_CURSOR_TIMEOUT_MS=${OPENCLAW_CURSOR_TIMEOUT_MS:-300000}
+      - OPENCLAW_CURSOR_DEFAULT_MODEL=${OPENCLAW_CURSOR_DEFAULT_MODEL:-auto}
+      - CURSOR_ACCESS_TOKEN=${CURSOR_ACCESS_TOKEN:-}
+      - CURSOR_REFRESH_TOKEN=${CURSOR_REFRESH_TOKEN:-}
+      - CURSOR_API_KEY=${CURSOR_API_KEY:-}
+    volumes:
+      # Mount host Cursor auth (works on Linux/macOS; on Windows use WSL2 paths)
+      - ${CURSOR_AUTH_DIR:-~/.config/cursor}:/root/.config/cursor:ro
+      # Persist OpenClaw state across restarts
+      - openclaw-data:/root/.openclaw
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:32125/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    command: ["proxy"]
+
+  gateway:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+    image: openclaw-cursor:latest
+    container_name: openclaw-cursor-gateway
+    restart: unless-stopped
+    profiles:
+      - gateway
+    ports:
+      - "${OPENCLAW_CURSOR_PORT:-32125}:32125"
+      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+    environment:
+      - OPENCLAW_CURSOR_PORT=32125
+      - OPENCLAW_CURSOR_LOG_LEVEL=${OPENCLAW_CURSOR_LOG_LEVEL:-info}
+      - OPENCLAW_CURSOR_TOOL_MODE=${OPENCLAW_CURSOR_TOOL_MODE:-openclaw}
+      - OPENCLAW_CURSOR_ENABLE_THINKING=${OPENCLAW_CURSOR_ENABLE_THINKING:-true}
+      - OPENCLAW_CURSOR_TIMEOUT_MS=${OPENCLAW_CURSOR_TIMEOUT_MS:-300000}
+      - OPENCLAW_CURSOR_DEFAULT_MODEL=${OPENCLAW_CURSOR_DEFAULT_MODEL:-auto}
+      - OPENCLAW_GATEWAY_PORT=18789
+      - CURSOR_ACCESS_TOKEN=${CURSOR_ACCESS_TOKEN:-}
+      - CURSOR_REFRESH_TOKEN=${CURSOR_REFRESH_TOKEN:-}
+      - CURSOR_API_KEY=${CURSOR_API_KEY:-}
+    volumes:
+      - ${CURSOR_AUTH_DIR:-~/.config/cursor}:/root/.config/cursor:ro
+      - openclaw-data:/root/.openclaw
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:32125/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    command: ["both"]
+
+volumes:
+  openclaw-data:
