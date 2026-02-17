@@ -21,10 +21,47 @@ OpenClaw --> POST /v1/chat/completions --> openclaw-cursor proxy (:32125)
 
 ## Prerequisites
 
-- **Go 1.22+** (for building)
+- **Go 1.22+** (for building from source)
 - **cursor-agent** - `curl -fsSL https://cursor.com/install | bash`
+- **Docker** (optional, for containerized deployment)
 
 ## Installation
+
+### Docker (recommended — Linux, macOS, Windows)
+
+No Go or Node required on the host. Just Docker.
+
+```bash
+git clone https://github.com/menezmethod/openclaw-cursor.git
+cd openclaw-cursor
+
+# One command — builds image and starts proxy
+make docker-up
+
+# Or use docker compose directly
+docker compose up -d proxy
+
+# With OpenClaw gateway too
+docker compose --profile gateway up -d
+```
+
+**Quick-start scripts** that auto-detect your Cursor auth:
+
+```bash
+# Linux / macOS
+./docker/docker-run.sh
+
+# Windows (PowerShell)
+.\docker\docker-run.ps1
+```
+
+**Pass auth via environment** (CI, headless, or no local Cursor):
+
+```bash
+CURSOR_ACCESS_TOKEN=eyJ... CURSOR_REFRESH_TOKEN=eyJ... docker compose up -d
+```
+
+See [Docker](#docker) below for full details.
 
 ### Build from source
 
@@ -231,6 +268,126 @@ cp -r ~/Development/openclaw-cursor/skills/cursor-proxy ~/.openclaw/skills/
 Or into workspace: `cp -r skills/cursor-proxy ~/.openclaw/workspace/skills/`
 
 The agent will then know how to verify the version and suggest `make refresh` when the proxy needs updating.
+
+## Docker
+
+The Docker setup packages the proxy, `cursor-agent`, and OpenClaw into a single image that works on **Linux**, **macOS** (Intel + Apple Silicon), and **Windows** (via WSL2/Docker Desktop).
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Docker Container                                   │
+│  ┌──────────────────┐  ┌─────────────────────────┐  │
+│  │ openclaw-cursor   │  │ cursor-agent            │  │
+│  │ proxy (:32125)    │──│ (spawned per request)   │  │
+│  └──────────────────┘  └─────────────────────────┘  │
+│  ┌──────────────────┐                               │
+│  │ OpenClaw gateway  │ (optional, :18789)            │
+│  └──────────────────┘                               │
+│                                                     │
+│  Auth: mounted from host or injected via env vars   │
+└─────────────────────────────────────────────────────┘
+```
+
+### Quick start
+
+```bash
+# Build + run (proxy only)
+make docker-up
+
+# Check health
+curl http://127.0.0.1:32125/health
+
+# View logs
+make docker-logs
+
+# Stop
+make docker-down
+```
+
+### Authentication methods
+
+The container needs Cursor credentials. Pick one:
+
+| Method | How |
+|--------|-----|
+| **Mount auth dir** (default) | Your `~/.config/cursor/auth.json` is auto-mounted read-only |
+| **Environment variables** | Set `CURSOR_ACCESS_TOKEN` + `CURSOR_REFRESH_TOKEN` |
+| **API key** | Set `CURSOR_API_KEY` |
+
+```bash
+# Example: env vars (CI, headless servers)
+docker run -d -p 32125:32125 \
+  -e CURSOR_ACCESS_TOKEN=eyJ... \
+  -e CURSOR_REFRESH_TOKEN=eyJ... \
+  openclaw-cursor:latest
+```
+
+### Auth directory by platform
+
+| Platform | Default auth path |
+|----------|------------------|
+| **Linux** | `~/.config/cursor/auth.json` |
+| **macOS** | `~/.cursor/auth.json` |
+| **Windows** | `%APPDATA%\Cursor\auth.json` |
+
+Override with `CURSOR_AUTH_DIR`:
+
+```bash
+CURSOR_AUTH_DIR=/custom/path docker compose up -d
+```
+
+### Container modes
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| `proxy` | `docker compose up` | Proxy only (default) |
+| `both` | `docker compose --profile gateway up` | Proxy + OpenClaw gateway |
+| `test` | `make docker-test` | Run self-test and exit |
+| `shell` | `docker run -it openclaw-cursor shell` | Interactive shell |
+
+### docker-compose.yml
+
+```bash
+# Proxy only
+docker compose up -d proxy
+
+# Proxy + gateway
+docker compose --profile gateway up -d
+
+# Custom port
+OPENCLAW_CURSOR_PORT=9999 docker compose up -d
+
+# Rebuild after code changes
+docker compose build && docker compose up -d
+```
+
+### Environment variables
+
+Copy `.env.example` to `.env` to configure:
+
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+All `OPENCLAW_CURSOR_*` env vars work in Docker (see [Configuration](#configuration)).
+
+### Cross-platform helper scripts
+
+| Platform | Script |
+|----------|--------|
+| Linux / macOS | `./docker/docker-run.sh [proxy\|both\|test]` |
+| Windows (PowerShell) | `.\docker\docker-run.ps1 [-Mode proxy\|both\|test]` |
+
+These scripts auto-detect your Cursor auth directory, build the image if needed, and start the container.
+
+### Build multi-arch image
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 -t openclaw-cursor:latest .
+```
 
 ## Troubleshooting
 
