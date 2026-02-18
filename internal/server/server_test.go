@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/menezmethod/openclaw-cursor/internal/config"
-	"github.com/menezmethod/openclaw-cursor/internal/logger"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/config"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

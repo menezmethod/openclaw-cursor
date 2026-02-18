@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/menezmethod/openclaw-cursor/internal/streaming"
-	"github.com/menezmethod/openclaw-cursor/internal/translator"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/streaming"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/translator"
 )
 
 // AliasMap normalizes cursor-agent tool names to OpenClaw tool names.

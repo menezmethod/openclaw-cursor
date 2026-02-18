@@ -13,7 +13,7 @@ You  -->  OpenClaw UI  -->  proxy (:32125)  -->  cursor-agent  -->  Cursor API
 ### A) Docker (any OS)
 
 ```bash
-git clone https://github.com/menezmethod/openclaw-cursor.git
+git clone https://github.com/GabrieleRisso/openclaw-cursor.git
 cd openclaw-cursor
 docker compose up -d
 ```
@@ -32,7 +32,7 @@ curl -fsSL https://cursor.com/install | bash
 curl -fsSL https://openclaw.ai/install.sh | bash
 
 # 3. Clone and build the proxy
-git clone https://github.com/menezmethod/openclaw-cursor.git
+git clone https://github.com/GabrieleRisso/openclaw-cursor.git
 cd openclaw-cursor
 make build
 make install-local

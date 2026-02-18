@@ -12,11 +12,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/menezmethod/openclaw-cursor/internal/auth"
-	"github.com/menezmethod/openclaw-cursor/internal/config"
-	"github.com/menezmethod/openclaw-cursor/internal/logger"
-	"github.com/menezmethod/openclaw-cursor/internal/models"
-	"github.com/menezmethod/openclaw-cursor/internal/server"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/auth"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/config"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/logger"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/models"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/server"
 )
 
 func runLogin() error {
