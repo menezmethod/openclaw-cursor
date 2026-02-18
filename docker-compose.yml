@@ -1,17 +1,3 @@
-# ---------------------------------------------------------------------------
-# docker-compose.yml — openclaw-cursor proxy
-#
-# Usage:
-#   # Proxy only (default)
-#   docker compose up
-#
-#   # Proxy + OpenClaw gateway
-#   docker compose --profile gateway up
-#
-#   # With explicit auth (if not mounting)
-#   CURSOR_ACCESS_TOKEN=xxx CURSOR_REFRESH_TOKEN=yyy docker compose up
-# ---------------------------------------------------------------------------
-
 services:
   proxy:
     build:
@@ -34,9 +20,7 @@ services:
       - CURSOR_REFRESH_TOKEN=${CURSOR_REFRESH_TOKEN:-}
       - CURSOR_API_KEY=${CURSOR_API_KEY:-}
     volumes:
-      # Mount host Cursor auth (works on Linux/macOS; on Windows use WSL2 paths)
       - ${CURSOR_AUTH_DIR:-~/.config/cursor}:/root/.config/cursor:ro
-      # Persist OpenClaw state across restarts
       - openclaw-data:/root/.openclaw
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:32125/health"]

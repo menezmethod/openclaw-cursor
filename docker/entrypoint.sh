@@ -137,7 +137,7 @@ case "$MODE" in
         sleep 3
         if curl -sf http://127.0.0.1:${OPENCLAW_CURSOR_PORT:-32125}/health > /dev/null 2>&1; then
             echo "[start] Proxy healthy, starting OpenClaw gateway"
-            exec openclaw gateway --port "${OPENCLAW_GATEWAY_PORT:-18789}"
+            exec openclaw gateway --port "${OPENCLAW_GATEWAY_PORT:-18789}" --bind lan
         else
             echo "[error] Proxy failed to start"
             kill $PROXY_PID 2>/dev/null || true
