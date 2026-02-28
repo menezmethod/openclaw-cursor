@@ -1,4 +1,4 @@
-module github.com/menezmethod/openclaw-cursor
+module github.com/GabrieleRisso/openclaw-cursor
 
 go 1.22
 

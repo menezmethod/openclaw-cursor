@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/menezmethod/openclaw-cursor/internal/streaming"
-	"github.com/menezmethod/openclaw-cursor/internal/translator"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/streaming"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/translator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

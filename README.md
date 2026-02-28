@@ -1,67 +1,75 @@
 # OpenClaw-Cursor Proxy
 
-HTTP proxy that enables [OpenClaw](https://github.com/openclaw/openclaw) to use Cursor Pro models via the `cursor-agent` CLI. A single static Go binary with no runtime dependencies.
-
-## Architecture
+Use your **Cursor Pro subscription** as the AI backend for [OpenClaw](https://github.com/openclaw/openclaw). One proxy, all Cursor models, zero API keys.
 
 ```
-OpenClaw --> POST /v1/chat/completions --> openclaw-cursor proxy (:32125)
-                    |
-                    v
-            cursor-agent (spawned per request)
-                    |
-                    v
-            Cursor API (HTTPS)
+You  -->  OpenClaw UI  -->  proxy (:32125)  -->  cursor-agent  -->  Cursor API
 ```
 
-- Accepts OpenAI-compatible requests
-- Spawns `cursor-agent --output-format stream-json` per request
-- Streams NDJSON responses as OpenAI SSE
-- Supports thinking blocks and tool calling (OpenClaw-owned loop)
+---
 
-## Prerequisites
+## Install (pick one)
 
-- **Go 1.22+** (for building)
-- **cursor-agent** - `curl -fsSL https://cursor.com/install | bash`
-
-## Installation
-
-### Build from source
+### A) Docker (any OS)
 
 ```bash
-git clone https://github.com/menezmethod/openclaw-cursor.git
+git clone https://github.com/GabrieleRisso/openclaw-cursor.git
+cd openclaw-cursor
+docker compose up -d
+```
+
+Done. Proxy at `http://127.0.0.1:32125`, health at `/health`.
+
+> **Windows?** Use Docker Desktop with WSL2. Same command in PowerShell or WSL terminal.
+
+### B) From source (Linux / macOS)
+
+```bash
+# 1. Install cursor-agent
+curl -fsSL https://cursor.com/install | bash
+
+# 2. Install OpenClaw
+curl -fsSL https://openclaw.ai/install.sh | bash
+
+# 3. Clone and build the proxy
+git clone https://github.com/GabrieleRisso/openclaw-cursor.git
 cd openclaw-cursor
 make build
-# Binary at bin/openclaw-cursor
-```
+make install-local
 
-### Install script
-
-```bash
-./scripts/install.sh
-```
-
-### Cross-compile
-
-```bash
-make cross
-# Outputs to dist/openclaw-cursor-{linux,darwin}-{amd64,arm64}
-```
-
-## Quick Start
-
-```bash
-# 1. Authenticate with Cursor (opens browser)
+# 4. Log in to Cursor
 openclaw-cursor login
 
-# 2. Start the proxy
+# 5. Start the proxy
 openclaw-cursor start
-
-# 3. Configure OpenClaw - add to ~/.openclaw/openclaw.json:
 ```
+
+---
+
+## Verify it works
+
+```bash
+# Health check
+curl http://127.0.0.1:32125/health
+
+# List models
+curl http://127.0.0.1:32125/v1/models
+
+# Send a chat request
+curl http://127.0.0.1:32125/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"cursor/auto","messages":[{"role":"user","content":"Say hello"}]}'
+```
+
+---
+
+## Connect OpenClaw
+
+The proxy auto-generates the config on first run (Docker). For source installs, create `~/.openclaw/openclaw.json`:
 
 ```json
 {
+  "gateway": { "mode": "local", "port": 18789 },
   "models": {
     "mode": "merge",
     "providers": {
@@ -70,93 +78,110 @@ openclaw-cursor start
         "api": "openai-completions",
         "models": [
           { "id": "auto", "name": "Cursor Auto", "contextWindow": 200000, "maxTokens": 8192 },
-          { "id": "sonnet-4.5-thinking", "name": "Claude 4.5 Sonnet (Thinking)", "reasoning": true, "contextWindow": 200000, "maxTokens": 8192 },
           { "id": "opus-4.6", "name": "Claude 4.6 Opus", "contextWindow": 200000, "maxTokens": 8192 },
-          { "id": "opus-4.6-thinking", "name": "Claude 4.6 Opus (Thinking)", "reasoning": true, "contextWindow": 200000, "maxTokens": 8192 }
+          { "id": "opus-4.6-thinking", "name": "Claude 4.6 Opus (Thinking)", "reasoning": true, "contextWindow": 200000, "maxTokens": 8192 },
+          { "id": "gpt-5.3-codex", "name": "GPT-5.3 Codex", "contextWindow": 200000, "maxTokens": 8192 }
         ]
       }
     }
   },
-  "agents": {
-    "defaults": {
-      "model": { "primary": "cursor/auto" }
-    }
+  "agents": { "defaults": { "model": { "primary": "cursor/auto" } } }
+}
+```
+
+Then add the auth profile placeholder (`~/.openclaw/agents/main/agent/auth-profiles.json`):
+
+```json
+{
+  "profiles": {
+    "cursor:default": { "type": "api_key", "provider": "cursor", "key": "placeholder" }
   }
 }
 ```
 
-```bash
-# 4. Test
-openclaw-cursor test
-```
-
-## OpenClaw Self-Onboarding
-
-Use the proxy so OpenClaw runs its own onboarding wizard with Cursor models. OpenClaw will use your Cursor subscription to guide you through setup.
-
-**Prerequisites:** [OpenClaw](https://docs.openclaw.ai/) installed (`npm install -g openclaw@latest`).
+Start the gateway and open the dashboard:
 
 ```bash
-# 1. Start the proxy
-openclaw-cursor start
-
-# 2. In another terminal, run the onboarding wizard
-openclaw onboard --install-daemon
+openclaw gateway --port 18789
+openclaw dashboard
 ```
 
-When the wizard reaches **Model/Auth**, choose **Custom Provider** and enter:
+---
 
-- **Base URL:** `http://127.0.0.1:32125/v1`
-- **Compatibility:** `openai`
-- **API key:** leave empty (the proxy uses Cursor's auth via cursor-agent)
+## Docker details
 
-**Important:** OpenClaw requires an auth profile for every provider. Add a placeholder entry to `~/.openclaw/agents/main/agent/auth-profiles.json` under `profiles`:
+### Authentication
 
-```json
-"cursor:default": {
-  "type": "api_key",
-  "provider": "cursor",
-  "key": "placeholder"
-}
-```
+The container needs your Cursor credentials. Pick one method:
 
-The proxy ignores this key—it uses Cursor's auth via cursor-agent.
-
-Alternatively, pre-configure Cursor in `~/.openclaw/openclaw.json` as shown in [Quick Start](#quick-start) before running the wizard.
-
-### Default model
+| Method | How |
+|--------|-----|
+| **Mount auth dir** (default) | Auto-mounts `~/.config/cursor/` read-only |
+| **Env vars** | `CURSOR_ACCESS_TOKEN` + `CURSOR_REFRESH_TOKEN` |
+| **API key** | `CURSOR_API_KEY` |
 
 ```bash
-openclaw models set cursor/auto
+# Example: pass tokens directly
+CURSOR_ACCESS_TOKEN=eyJ... CURSOR_REFRESH_TOKEN=eyJ... docker compose up -d
 ```
 
-### Switch models mid-chat
+### Modes
 
-In the Control UI or chat channels, type:
+```bash
+docker compose up -d                         # proxy only (default)
+docker compose --profile gateway up -d       # proxy + OpenClaw UI
+docker compose run --rm proxy test           # self-test
+```
 
-| Command | Model |
-|---------|-------|
-| `/model cursor/auto` | Cursor Auto |
-| `/model cursor/opus-4.6` | Claude 4.6 Opus |
-| `/model cursor/opus-4.6-thinking` | Opus with thinking |
-| `/model cursor/sonnet-4.5-thinking` | Sonnet with thinking |
-| `/model cursor/gpt-5.3-codex` | GPT-5.3 Codex |
+### Quick-start scripts
 
-Or run `openclaw agent --message "..."` after setting your default with `openclaw models set cursor/auto`.
+```bash
+./docker/docker-run.sh           # Linux / macOS
+.\docker\docker-run.ps1          # Windows PowerShell
+```
 
-## CLI Commands
+### Auth file locations by OS
 
-| Command | Description |
-|---------|-------------|
-| `login` | Launch OAuth flow for Cursor |
-| `logout` | Clear local credentials |
-| `status` | Check auth and proxy status |
-| `start` | Start proxy (foreground) |
-| `start --daemon` | Start proxy in background |
-| `stop` | Stop daemon |
-| `models` | List available models |
-| `test` | Send test request |
-| `version` | Print version |
+| OS | Path |
+|----|------|
+| Linux | `~/.config/cursor/auth.json` |
+| macOS | `~/.cursor/auth.json` |
+| Windows | `%APPDATA%\Cursor\auth.json` |
+
+---
+
+## CLI reference
+
+```
+openclaw-cursor login       # authenticate with Cursor
+openclaw-cursor start       # start the proxy
+openclaw-cursor start -d    # start in background
+openclaw-cursor stop        # stop background proxy
+openclaw-cursor status      # show auth + proxy status
+openclaw-cursor models      # list all available models
+openclaw-cursor test        # send a test request
+openclaw-cursor version     # print version
+```
+
+---
+
+## Models
+
+Run `openclaw-cursor models` for the full list. Highlights:
+
+| Model | ID |
+|-------|----|
+| Cursor Auto | `auto` |
+| Claude 4.6 Opus | `opus-4.6` |
+| Claude 4.6 Opus (Thinking) | `opus-4.6-thinking` |
+| Claude 4.5 Sonnet | `sonnet-4.5` |
+| GPT-5.3 Codex | `gpt-5.3-codex` |
+| GPT-5.2 | `gpt-5.2` |
+| Gemini 3 Pro | `gemini-3-pro` |
+
+Use as `cursor/<id>` in OpenClaw (e.g. `/model cursor/opus-4.6`).
+
+---
 
 ## Configuration
 
@@ -166,119 +191,37 @@ Config file: `~/.openclaw/cursor-proxy.json`
 {
   "port": 32125,
   "log_level": "info",
-  "tool_mode": "openclaw",
-  "workspace": "~/Development",
-  "timeout_ms": 300000,
-  "retry_attempts": 3,
   "default_model": "auto",
   "enable_thinking": true,
-  "max_tool_loop_iterations": 10
+  "timeout_ms": 300000
 }
 ```
 
-`workspace` — Directory cursor-agent can access. **Dynamic resolution:**
-1. `x-openclaw-workspace` request header (per-request override)
-2. Config `workspace` or `OPENCLAW_CURSOR_WORKSPACE`
-3. **Default: home directory** (`~`) — full access to all projects under your home
+All settings can be overridden with `OPENCLAW_CURSOR_*` env vars.
 
-Environment variables (override config):
-
-- `OPENCLAW_CURSOR_PORT` - Port (default 32125)
-- `OPENCLAW_CURSOR_WORKSPACE` - Workspace path (e.g. `~/Development`)
-- `OPENCLAW_CURSOR_LOG_LEVEL` - debug, info, warn, error
-- `OPENCLAW_CURSOR_LOG_SILENT` - true to suppress logs
-- `OPENCLAW_CURSOR_TOOL_MODE` - openclaw or proxy-exec
-- `OPENCLAW_CURSOR_TIMEOUT_MS` - Request timeout
-- `OPENCLAW_CURSOR_ENABLE_THINKING` - Enable thinking blocks
-
-## Models
-
-Run `openclaw-cursor models` for the full list. Key models:
-
-- **Composer**: auto, composer-1.5, composer-1
-- **GPT-5.3 Codex**: gpt-5.3-codex, gpt-5.3-codex-high, -low, -xhigh, -fast variants
-- **GPT-5.2**: gpt-5.2, gpt-5.2-codex, gpt-5.2-high
-- **Claude**: opus-4.6, opus-4.6-thinking, sonnet-4.5, sonnet-4.5-thinking — [Claude models overview](https://platform.claude.com/docs/en/about-claude/models/overview)
-- **Other**: gemini-3-pro, gemini-3-flash, grok
-
-## Operations (Refresh & Version)
-
-**One command to rebuild, install, and reload the proxy:**
-
-```bash
-cd ~/Development/openclaw-cursor
-make refresh
-```
-
-This builds with the current git version, symlinks to `~/.local/bin/openclaw-cursor`, creates/updates the launchd plist, and reloads it. The proxy restarts with the new binary.
-
-**Verify the version:**
-- Log on boot: `tail ~/.openclaw/logs/cursor-proxy.err.log` — look for `msg="proxy listening (version X)"`
-- CLI: `openclaw-cursor version`
-- Health: `curl -s http://127.0.0.1:32125/health | jq .proxy_version`
-
-**Paths:** Binary `~/.local/bin/openclaw-cursor` · Plist `~/Library/LaunchAgents/ai.openclaw.cursor-proxy.plist` · Logs `~/.openclaw/logs/cursor-proxy.*.log`
-
-### Agent skill (for RICO / OpenClaw bots)
-
-The repo includes a skill so your agent knows how to operate the cursor-proxy:
-
-```bash
-mkdir -p ~/.openclaw/skills
-cp -r ~/Development/openclaw-cursor/skills/cursor-proxy ~/.openclaw/skills/
-```
-
-Or into workspace: `cp -r skills/cursor-proxy ~/.openclaw/workspace/skills/`
-
-The agent will then know how to verify the version and suggest `make refresh` when the proxy needs updating.
+---
 
 ## Troubleshooting
 
-**"cursor-agent not found"**  
-Install: `curl -fsSL https://cursor.com/install | bash`
+| Problem | Fix |
+|---------|-----|
+| cursor-agent not found | `curl -fsSL https://cursor.com/install \| bash` |
+| Authentication failed | `openclaw-cursor login` |
+| Quota exceeded | Check cursor.com/settings |
+| Proxy not reachable | `openclaw-cursor start` |
+| "No API key for cursor" | Add the auth-profiles.json placeholder above |
 
-**"Authentication failed"**  
-Run `openclaw-cursor login` and complete the flow in your browser.
+Debug mode: `OPENCLAW_CURSOR_LOG_LEVEL=debug openclaw-cursor start`
 
-**"Quota exceeded"**  
-Check your Cursor subscription at cursor.com/settings.
+---
 
-**"Proxy not reachable"**  
-Ensure the proxy is running: `openclaw-cursor start`
+## API
 
-**"No API key found for provider cursor" / chat hangs**  
-OpenClaw requires an auth profile. Add `"cursor:default": {"type":"api_key","provider":"cursor","key":"placeholder"}` to `~/.openclaw/agents/main/agent/auth-profiles.json` under `profiles`. The proxy ignores the key.
-
-**Debug logging**  
-`OPENCLAW_CURSOR_LOG_LEVEL=debug openclaw-cursor start`
-
-**OpenClaw cron: "Delivering to WhatsApp requires target..."**  
-If isolated cron jobs fail with WhatsApp delivery errors, run this once **on your machine** (writes to `~/.openclaw`; automation environments often cannot):
-
-```bash
-cd ~/Development/openclaw-cursor
-node scripts/fix-cron-delivery.js --dry-run   # preview
-node scripts/fix-cron-delivery.js             # apply (creates backup first)
-```
-
-- Fixes: legacy `"to"` display name (no channel), Telegram without `to`, and `mode: "announce"` with no channel/to. Set `OPENCLAW_CRON_DEFAULT_TO` to your Telegram numeric ID. For legacy display-name replacement, set `OPENCLAW_CRON_LEGACY_TO`.
-- Backup: `~/.openclaw/cron/jobs.json.bak.<timestamp>`. Restore: `cp ~/.openclaw/cron/jobs.json.bak.<ts> ~/.openclaw/cron/jobs.json`.
-
-**Set all cron jobs to cursor/auto (same as heartbeat)**  
-To make every isolated cron job use `cursor/auto` (or another model), run **on your machine**:
-
-```bash
-cd ~/Development/openclaw-cursor
-node scripts/set-cron-model.js --dry-run   # preview
-node scripts/set-cron-model.js             # set all to cursor/auto
-node scripts/set-cron-model.js cursor/opus-4.6   # or another model
-```
-
-## API Endpoints
-
-- `POST /v1/chat/completions` - OpenAI-compatible chat (streaming and non-streaming)
-- `GET /v1/models` - List models
-- `GET /health` - Health check
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/chat/completions` | POST | OpenAI-compatible chat |
+| `/v1/models` | GET | List models |
+| `/health` | GET | Health check |
 
 ## License
 
