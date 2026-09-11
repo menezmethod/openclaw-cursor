@@ -261,7 +261,7 @@ func (s *Server) writeError(w http.ResponseWriter, pe *errors.ParsedError) {
 	if pe.Type == "quota_exceeded" || pe.Type == "rate_limit" {
 		w.WriteHeader(http.StatusTooManyRequests)
 	} else {
-		w.WriteHeader(http.StatusTooManyRequests)
+		w.WriteHeader(http.StatusBadRequest)
 	}
 	json.NewEncoder(w).Encode(errors.ToOpenAIError(pe))
 }
