@@ -15,13 +15,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/menezmethod/openclaw-cursor/internal/agent"
-	"github.com/menezmethod/openclaw-cursor/internal/auth"
-	"github.com/menezmethod/openclaw-cursor/internal/config"
-	"github.com/menezmethod/openclaw-cursor/internal/errors"
-	"github.com/menezmethod/openclaw-cursor/internal/models"
-	"github.com/menezmethod/openclaw-cursor/internal/streaming"
-	"github.com/menezmethod/openclaw-cursor/internal/translator"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/agent"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/auth"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/config"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/errors"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/models"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/streaming"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/translator"
 )
 
 // Server is the HTTP proxy server.

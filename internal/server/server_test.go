@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/menezmethod/openclaw-cursor/internal/config"
-	"github.com/menezmethod/openclaw-cursor/internal/logger"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/config"
+	"github.com/GabrieleRisso/openclaw-cursor/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,7 +51,7 @@ func TestServer_ChatCompletions_InvalidModel(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	srv.handleChatCompletions(w, req)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
 	var m map[string]interface{}
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&m))
 	assert.Contains(t, m, "error")

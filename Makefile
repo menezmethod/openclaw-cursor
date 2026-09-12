@@ -4,7 +4,8 @@ HOME ?= $(shell echo $$HOME)
 BINARY := $(HOME)/.local/bin/openclaw-cursor
 PLIST := $(HOME)/Library/LaunchAgents/ai.openclaw.cursor-proxy.plist
 
-.PHONY: build install install-local launchd-setup launchd-reload refresh cross test lint clean
+.PHONY: build install install-local launchd-setup launchd-reload refresh cross test lint clean \
+       docker docker-up docker-down docker-test docker-logs
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/openclaw-cursor ./cmd/openclaw-cursor
@@ -59,3 +60,19 @@ lint:
 
 clean:
 	rm -rf bin dist
+
+# ── Docker targets ──────────────────────────────────────────────
+docker:
+	docker build -t openclaw-cursor:latest --build-arg VERSION=$(VERSION) .
+
+docker-up: docker
+	docker compose up -d proxy
+
+docker-down:
+	docker compose down
+
+docker-test: docker
+	docker compose run --rm proxy test
+
+docker-logs:
+	docker compose logs -f proxy
