@@ -1,6 +1,8 @@
 # OpenClaw-Cursor Proxy
 
-HTTP proxy that enables [OpenClaw](https://github.com/openclaw/openclaw) to use Cursor Pro models via the `cursor-agent` CLI. A single static Go binary with no runtime dependencies.
+HTTP proxy that enables [OpenClaw](https://github.com/openclaw/openclaw) to use Cursor Pro models via the `cursor-agent` CLI. A single Go binary; at runtime it needs the `cursor-agent` CLI.
+
+This is an unofficial personal tool, not affiliated with or endorsed by Cursor or OpenClaw. It drives `cursor-agent` with your own logged-in Cursor account; check Cursor's terms of service before using it beyond personal experimentation. Status: early, small test suite, no tagged releases.
 
 ## Architecture
 
@@ -219,7 +221,7 @@ This builds with the current git version, symlinks to `~/.local/bin/openclaw-cur
 
 **Paths:** Binary `~/.local/bin/openclaw-cursor` · Plist `~/Library/LaunchAgents/ai.openclaw.cursor-proxy.plist` · Logs `~/.openclaw/logs/cursor-proxy.*.log`
 
-### Agent skill (for RICO / OpenClaw bots)
+### Agent skill (for OpenClaw agents)
 
 The repo includes a skill so your agent knows how to operate the cursor-proxy:
 
